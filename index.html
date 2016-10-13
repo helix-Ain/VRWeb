@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<title></title>
+		<style>
+			canvas {
+				width: 100%;
+				height: 100%
+			}
+		</style>
+		<script src="JS/three.min.js"></script>
+		<script src='JS/css3drenderer.js'></script>
+	</head>
+
+	<body>
+		<script>
+			var scene, renderer, camera;
+			var target = new THREE.Vector3(); //相机焦点
+			var lon = 90,
+				lat = 0;
+			var phi = 0,
+				theta = 0;
+			var touchX, touchY;
+
+			function init() {
+				/**
+				 * 创建场景
+				 * @type {THREE.Scene}
+				 */
+				scene = new THREE.Scene();
+
+				/**
+				 * 添加相机
+				 * @type {THREE.PerspectiveCamera}
+				 */
+				camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+				/**
+				 * 添加一个渲染器
+				 * @type {THREE.CSS3DRenderer}
+				 */
+				renderer = new THREE.CSS3DRenderer();
+				renderer.setClearColor(0x000000, 1.0);
+				renderer.setSize(window.innerWidth, window.innerHeight);
+
+				var sides = [{
+					url: 'Image/0817114871-2013x2013.jpg',
+					position: [-512, 0, 0],
+					rotation: [0, Math.PI / 2, 0]
+				}, {
+					url: 'Image/0817656350-2013x2013.jpg',
+					position: [512, 0, 0],
+					rotation: [0, -Math.PI / 2, 0]
+				}, {
+					url: 'Image/0817738221-2013x2013.jpg',
+					position: [0, 512, 0],
+					rotation: [Math.PI / 2, 0, Math.PI]
+				}, {
+					url: 'Image/0817921013-2013x2013.jpg',
+					position: [0, -512, 0],
+					rotation: [-Math.PI / 2, 0, Math.PI]
+				}, {
+					url: 'Image/0817373304-2013x2013.jpg',
+					position: [0, 0, 512],
+					rotation: [0, Math.PI, 0]
+				}, {
+					url: 'Image/0817249521-2013x2013.jpg',
+					position: [0, 0, -512],
+					rotation: [0, 0, 0]
+				}];
+
+				for(var i = 0; i < sides.length; i++) {
+					var side = sides[i];
+					var element = document.createElement('section');
+					document.body.appendChild(element);
+					element.id = 'section_' + i;
+					var imgElement = document.createElement('img');
+					imgElement.width = 1028; // 2 pixels extra to close the gap.
+					imgElement.height = 1028;
+					imgElement.src = side.url;
+					element.appendChild(imgElement);
+					var object = new THREE.CSS3DObject(element);
+					object.position.set(side.position[0], side.position[1], side.position[2]);
+					object.rotation.set(side.rotation[0], side.rotation[1], side.rotation[2]);
+					scene.add(object);
+				}
+				document.body.appendChild(renderer.domElement);
+
+				/**
+				 * 注册监听
+				 */
+				//单击鼠标左键
+				document.addEventListener('mousedown', onDocumentMouseDown, false);
+				//鼠标滑轮滚动
+				document.addEventListener('mousewheel', onDocumentMouseWheel, false);
+				//手指触摸屏幕开始
+				document.addEventListener('touchstart', onDocumentTouchStart, false);
+				//手指触摸屏幕滑动
+				document.addEventListener('touchmove', onDocumentTouchMove, false);
+				//手指触摸屏幕结束
+				document.addEventListener('touchend', onDocumentTouchEnd, false);
+				window.addEventListener('resize', onWindowResize, false);
+				render();
+			}
+
+			/**
+			 * 实时渲染函数
+			 */
+			function render() {
+				requestAnimationFrame(render);
+				lon = Math.max(-180, Math.min(180, lon)); //限制固定角度内旋转
+				lon += 0.1; //自动旋转
+				lat = Math.max(-85, Math.min(85, lat));
+				phi = THREE.Math.degToRad(90 - lat);
+				theta = THREE.Math.degToRad(lon);
+				target.x = Math.sin(phi) * Math.cos(theta);
+				target.y = Math.cos(phi);
+				target.z = Math.sin(phi) * Math.sin(theta);
+				camera.lookAt(target);
+				renderer.render(scene, camera);
+			}
+
+			/**
+			 * 窗体大小改变
+			 */
+			function onWindowResize() {
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+				renderer.setSize(window.innerWidth, window.innerHeight);
+			}
+
+			function onDocumentMouseDown(event) {
+				event.preventDefault();
+				document.addEventListener('mousemove', onDocumentMouseMove, false);
+				document.addEventListener('mouseup', onDocumentMouseUp, false);
+			}
+
+			function onDocumentMouseMove(event) {
+				var movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
+				var movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+				lon -= movementX * 0.1;
+				lat += movementY * 0.1;
+			}
+
+			function onDocumentMouseUp(event) {
+				document.removeEventListener('mousemove', onDocumentMouseMove);
+				document.removeEventListener('mouseup', onDocumentMouseUp);
+			}
+
+			/**
+			 * 鼠标滚轮改变相机焦距
+			 */
+			function onDocumentMouseWheel(event) {
+				var restrict = camera.fov - event.wheelDeltaY * 0.05;
+				if(restrict > 20 && restrict < 90) {
+					camera.fov = restrict;
+					camera.updateProjectionMatrix();
+				} else {
+					return;
+				}
+			}
+
+			function onDocumentTouchStart(event) {
+				event.preventDefault();
+				var touch = event.touches[0];
+				touchX = touch.screenX;
+				touchY = touch.screenY;
+			}
+
+			function onDocumentTouchMove(event) {
+				event.preventDefault();
+				var touch = event.touches[0];
+				lon -= (touch.screenX - touchX) * 0.1;
+				lat += (touch.screenY - touchY) * 0.1;
+				touchX = touch.screenX;
+				touchY = touch.screenY;
+			}
+
+			function onDocumentTouchEnd(event) {
+
+			}
+			/**
+			 * 脚本入口
+			 * @type {init}
+			 */
+			window.onload = init;
+		</script>
+	</body>
+
+</html>
